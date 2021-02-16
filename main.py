@@ -58,13 +58,13 @@ class Requests():
 
 
 
-username = "accountbottest1"
-password = "bottest123"
+username = "bot"
+password = "botter"
 
 BotReq = Requests()
 session = BotReq.MakeLogin(username, password)
 
-ScrapingUser = User("anitta", session)
+ScrapingUser = User("perf", session)
 ScrapingUser.Followers()
 
 """ 
