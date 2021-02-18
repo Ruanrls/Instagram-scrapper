@@ -2,32 +2,59 @@ import json
 from requests import Session, utils
 from datetime import datetime
 from time import sleep
+import getpass
 
 LINK = 'https://www.instagram.com/accounts/login/'
 BASE_LINK = LINK + "ajax/"
-GRAPHQL_URL = "https://www.instagram.com/graphql/query/?query_hash=5aefa9893005572d237da5068082d8d5&variables="
 
 
 class User:
     def __init__(self, username, session):
+        self.followers = []
         self.session = session
         self.username = username
-        self.userInfo = json.loads(self.session.get(
-            'https://www.instagram.com/' + username + '?__a=1').text)['graphql']['user']
-        self.userId = self.userInfo['id']
+        self.GetToken('https://www.instagram.com/' + username)
 
-        self.graphql = '{"id":"' + self.userId + '","include_reel":true,"fetch_mutual":false,"first":12,"after":"QVFETVhMMlpsXzVONWdkWlhnWG9tNTY4TTFheWZjMDdmYXdISk5MUFVpMjgtNnd2QUVYOE5oLWd5NHBGckxia1djeTE1dXJHS0tOQnBtVjZtbVNfb05aSw=="}'
-        self.graphqlURL = GRAPHQL_URL + utils.quote(self.graphql)
+        self.userId = json.loads(self.session.get(
+            'https://www.instagram.com/' + username + '?__a=1').text)['graphql']['user']['id']
+
+        self.url = 'https://www.instagram.com/graphql/query/?query_hash=5aefa9893005572d237da5068082d8d5&variables={"id":"' + self.userId + \
+            '","include_reel":true,"fetch_mutual":false,"first":48,"after":"QVFEbWxQbXNDXzU1NGpQSGNPUXhXMEUzRlFEM0pfZzlfaTNLaWV3VkRvZnN1MmpHM3ZMVHNPMm1ZYlU2M2xRYTg2OUlkbHR3anEzY0lIeGJPQkJnVjAtag=="}'
 
     def Followers(self):
-        req = self.session.get(self.graphqlURL)
-        print(req.text)
 
-        edges = json.loads(req.text)
+        self.GetToken(
+            "https://www.instagram.com/" + self.username + "/followers/")
 
-        print(len(edges))
-        for node in edges:
-            print(node)
+        req = self.session.get(self.url, headers={
+            'Referer': "https://www.instagram.com/" + self.username + "/followers/"})
+
+        edges = json.loads(req.text)[
+            'data']['user']['edge_followed_by']['edges']
+        afterObject = json.loads(req.text)[
+            'data']['user']['edge_followed_by']['page_info']
+
+        for each in edges:
+            self.followers.append("@" + each['node']['username'] + '\n')
+
+        if(afterObject['has_next_page'] == True):
+            if(len(self.followers) >= 10000):
+                return
+
+            self.url = 'https://www.instagram.com/graphql/query/?query_hash=5aefa9893005572d237da5068082d8d5&variables={"id":"' + self.userId + \
+                '","include_reel":true,"fetch_mutual":false,"first":48,"after":"' + \
+                afterObject['end_cursor'] + '"}'
+            self.Followers()
+
+    def GetToken(self, url):  # atualiza o csrf token e o id_gid
+        req = self.session.get(url)
+        self.token = req.cookies['csrftoken']
+        self.session.headers.update({"X-CSRFToken": self.token})
+        try:
+            self.id_gid = req.cookies['id_gid']
+            self.session.headers.update({"X-CSRFToken": self.id_gid})
+        except:
+            pass
 
 
 class Requests():
@@ -39,13 +66,11 @@ class Requests():
             'Origin': 'https://www.instagram.com',
             'X-Requested-With': 'XMLHttpRequest'
         }
-        self.GetToken(LINK)
+        req = self.session.get(LINK)
+        self.token = req.cookies['csrftoken']
+
         self.session.headers.update(
             {'Referer': LINK, 'X-CSRFToken': self.token})
-
-    def GetToken(self, url):  # atualiza o token
-        req = self.session.get(url)
-        self.token = req.cookies['csrftoken']
 
     def MakeLogin(self, username, password):
         time = int(datetime.now().timestamp())
@@ -59,25 +84,28 @@ class Requests():
 
         login = self.session.post(BASE_LINK, data=loginData)
         self.token = login.cookies['csrftoken']
-        print(login)
+
+        if(login.status_code == 403):
+            print("Can't be logged!\nExiting....")
+            exit(0)
+
+        print("logged in!")
         return self.session
 
 
-username = "teste"
-password = "teste"
+username = input("Informe seu username: ")
+password = getpass.getpass("Insira sua password: ")
+scrapper = input("Buscar seguidores de qual perfil? ")
 
 BotReq = Requests()
 session = BotReq.MakeLogin(username, password)
 
-ScrapingUser = User("perfil", session)
+ScrapingUser = User(scrapper, session)
 ScrapingUser.Followers()
-
-
-""" 
-wordlist = []
-
-for each in userInfo:
-    wordlist.append("@" + each['node']['username'] + '\n')
+print(ScrapingUser.followers)
+print(len(ScrapingUser.followers))
 
 with open('wordlist.txt', 'w') as file:
-    file.writelines(wordlist) """
+    for user in ScrapingUser.followers:
+        file.writelines(user)
+print("Done!")
