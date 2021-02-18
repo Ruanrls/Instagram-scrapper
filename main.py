@@ -38,12 +38,13 @@ class User:
             self.followers.append("@" + each['node']['username'] + '\n')
 
         if(afterObject['has_next_page'] == True):
-            if(len(self.followers) >= 10000):
+            if(len(self.followers) >= 2000):
                 return
 
             self.url = 'https://www.instagram.com/graphql/query/?query_hash=5aefa9893005572d237da5068082d8d5&variables={"id":"' + self.userId + \
                 '","include_reel":true,"fetch_mutual":false,"first":48,"after":"' + \
                 afterObject['end_cursor'] + '"}'
+            sleep(1)
             self.Followers()
 
     def GetToken(self, url):  # atualiza o csrf token e o id_gid
