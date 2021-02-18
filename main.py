@@ -22,7 +22,6 @@ class User:
             '","include_reel":true,"fetch_mutual":false,"first":48,"after":"QVFEbWxQbXNDXzU1NGpQSGNPUXhXMEUzRlFEM0pfZzlfaTNLaWV3VkRvZnN1MmpHM3ZMVHNPMm1ZYlU2M2xRYTg2OUlkbHR3anEzY0lIeGJPQkJnVjAtag=="}'
 
     def Followers(self):
-
         self.GetToken(
             "https://www.instagram.com/" + self.username + "/followers/")
 
@@ -34,18 +33,21 @@ class User:
         afterObject = json.loads(req.text)[
             'data']['user']['edge_followed_by']['page_info']
 
-        for each in edges:
-            self.followers.append("@" + each['node']['username'] + '\n')
+        try:
+            for each in edges:
+                self.followers.append("@" + each['node']['username'] + '\n')
 
-        if(afterObject['has_next_page'] == True):
-            if(len(self.followers) >= 2000):
-                return
+            if(afterObject['has_next_page'] == True):
+                if(len(self.followers) >= 2000):
+                    return
 
-            self.url = 'https://www.instagram.com/graphql/query/?query_hash=5aefa9893005572d237da5068082d8d5&variables={"id":"' + self.userId + \
-                '","include_reel":true,"fetch_mutual":false,"first":48,"after":"' + \
-                afterObject['end_cursor'] + '"}'
-            sleep(1)
-            self.Followers()
+                self.url = 'https://www.instagram.com/graphql/query/?query_hash=5aefa9893005572d237da5068082d8d5&variables={"id":"' + self.userId + \
+                    '","include_reel":true,"fetch_mutual":false,"first":48,"after":"' + \
+                    afterObject['end_cursor'] + '"}'
+                sleep(1)
+                self.Followers()
+        except:
+            return
 
     def GetToken(self, url):  # atualiza o csrf token e o id_gid
         req = self.session.get(url)
@@ -55,6 +57,7 @@ class User:
             self.id_gid = req.cookies['id_gid']
             self.session.headers.update({"X-CSRFToken": self.id_gid})
         except:
+            print("Não foi possível buscar todos os dados!\n")
             pass
 
 
@@ -106,7 +109,7 @@ ScrapingUser.Followers()
 print(ScrapingUser.followers)
 print(len(ScrapingUser.followers))
 
-with open('wordlist.txt', 'w') as file:
+with open('wordlist.txt', 'a') as file:
     for user in ScrapingUser.followers:
         file.writelines(user)
 print("Done!")
